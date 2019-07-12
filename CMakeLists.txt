@@ -89,6 +89,7 @@ else()
 endif()
 
 SET(PROJECT_NAME "xlsxwriter" CACHE STRING "Optional project and binary name")
+set(PROJECT_VERSION 1.0)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 project(${PROJECT_NAME} C)
 enable_testing()
@@ -209,11 +210,24 @@ target_sources(${PROJECT_NAME}
     PRIVATE ${LXW_SOURCES}
     PUBLIC ${LXW_HEADERS}
 )
+
+if (MSVC)
+    set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "_d")
+endif()
+add_library(xlsxwriter:xlsxwriter ALIAS ${PROJECT_NAME})
+
+set(INSTALLATION_DIR "${CMAKE_INSTALL_PREFIX}")
+set(CMAKE_INSTALL_LIBDIR "${INSTALLATION_DIR}/lib")
+set(CMAKE_INSTALL_BINDIR "${INSTALLATION_DIR}/bin")
+set(CMAKE_INSTALL_INCLUDEDIR "${INSTALLATION_DIR}/include")
+set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
+
 target_link_libraries(${PROJECT_NAME} LINK_PUBLIC ${ZLIB_LIBRARIES} ${MINIZIP_LIBRARIES})
 target_compile_definitions(${PROJECT_NAME} PRIVATE ${LXW_PRIVATE_COMPILE_DEFINITIONS})
 target_include_directories(${PROJECT_NAME}
-    PRIVATE ${LXW_PRIVATE_INCLUDE_DIRS}
-    PUBLIC include include/xlsxwriter
+    PUBLIC
+    "$<BUILD_INTERFACE:${LXW_PRIVATE_INCLUDE_DIRS};${CMAKE_CURRENT_LIST_DIR}/include;${CMAKE_CURRENT_LIST_DIR}/include/xlsxwriter>"    
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 # TESTS
@@ -301,38 +315,49 @@ if(BUILD_EXAMPLES)
     endforeach(source)
 endif()
 
+#####################
 # INSTALL
-# -------
+##
 
-include(GNUInstallDirs)
+install(TARGETS ${PROJECT_NAME}
+    EXPORT LibxlsxwriterTargets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
 
-if(MSVC)
-    if(CMAKE_CL_64)
-        set(MSVC_FOLDER_PREFIX x64)
-    else()
-        set(MSVC_FOLDER_PREFIX Win32)
-    endif()
-
-    install(TARGETS ${PROJECT_NAME}
-        LIBRARY DESTINATION "lib/${MSVC_FOLDER_PREFIX}/\${CMAKE_INSTALL_CONFIG_NAME}"
-        ARCHIVE DESTINATION "lib/${MSVC_FOLDER_PREFIX}/\${CMAKE_INSTALL_CONFIG_NAME}"
-        RUNTIME DESTINATION "bin/${MSVC_FOLDER_PREFIX}/\${CMAKE_INSTALL_CONFIG_NAME}"
-    )
-    if (NOT BUILD_SHARED_LIBS)
-        install(FILES ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pdb
-            DESTINATION "lib/${MSVC_FOLDER_PREFIX}/\${CMAKE_INSTALL_CONFIG_NAME}"
-        )
-    endif()
-
-else(MSVC)
-    install(TARGETS ${PROJECT_NAME}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    )
-endif(MSVC)
 install(FILES include/xlsxwriter.h DESTINATION include)
-install(DIRECTORY include/xlsxwriter
+install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/xlsxwriter
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING PATTERN "*.h"
+)
+
+install(EXPORT LibxlsxwriterTargets
+        FILE LibxlsxwriterTargets.cmake
+        NAMESPACE xlsxwriter::
+        DESTINATION ${INSTALL_CONFIGDIR}
+    )
+
+#####################
+# ConfigVersion file
+##
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/LibxlsxwriterConfigVersion.cmake
+        VERSION 1.0
+        COMPATIBILITY AnyNewerVersion
+)
+
+configure_package_config_file(
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/LibxlsxwriterConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/LibxlsxwriterConfig.cmake
+        INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
+)
+
+## Install all the helper files
+install(
+        FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/LibxlsxwriterConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/LibxlsxwriterConfigVersion.cmake
+        DESTINATION ${INSTALL_CONFIGDIR}
 )

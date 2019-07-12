@@ -48,3 +48,5 @@ third_party/zlib-1.2.8/examplesh
 third_party/zlib-1.2.8/minigzip
 third_party/zlib-1.2.8/minigzipsh
 third_party/zlib-1.2.8/zlib.pc
+
+build/
